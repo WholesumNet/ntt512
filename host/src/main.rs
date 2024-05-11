@@ -3,22 +3,14 @@
 use methods::{
     NTT_GUEST_ELF, NTT_GUEST_ID
 };
-use risc0_zkvm::{default_prover, ExecutorEnv, Receipt};
+use risc0_zkvm::{default_prover, ExecutorEnv};
 use serde::{Serialize, Deserialize};
 use rand::Rng;
 use std::time::Instant;
-use chrono::{DateTime, Utc};
-use serde_json;
+use chrono::{Utc};
 use std::fs;
-
-
-#[derive(Serialize, Deserialize)]
-struct Benchmark {
-    receipt: Receipt,
-    image_id: [u32; 8],
-    duration_msecs: u128,
-    timestamp: DateTime<Utc>,
-}
+use bincode;
+use benchmark;
 
 #[derive(Serialize, Deserialize)]
 struct NTT {
@@ -73,19 +65,16 @@ fn main() {
         .prove(env, NTT_GUEST_ELF)
         .unwrap();
     let elapsed = now.elapsed();
-    println!("Elapsed: {:.2?}", elapsed);
-    
-    // For example:
-    // let _output: u32 = receipt.journal.decode().unwrap();
+    println!("It took {:.2?} msecs to execute NTT512.", elapsed.as_millis());
 
-    let benchmark_result = Benchmark {
-        receipt: receipt,
-        image_id: NTT_GUEST_ID,
+    let benchmark_result = benchmark::Benchmark {
+        r0_receipt_blob: bincode::serialize(&receipt).unwrap(),
+        r0_image_id: NTT_GUEST_ID,
         duration_msecs: elapsed.as_millis(),
-        timestamp: Utc::now(),
+        timestamp: Utc::now().timestamp(),
     };
-    let s = serde_json::to_string(&benchmark_result).unwrap();
-    fs::write("/home/prince/residue/benchmark", s).expect(
-        "Benchmark write to file error"
+    let blob = bincode::serialize(&benchmark_result).unwrap();
+    fs::write("/home/prince/residue/benchmark", blob.as_slice()).expect(
+        "Write to file error: benchmark."
     );   
 }
